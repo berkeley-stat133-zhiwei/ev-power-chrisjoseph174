@@ -1,6 +1,6 @@
 ---
 title: "EV Power - Lab 4 Project Report"
-format: typst
+format: pdf
 ---
 
 # Example Solution 1
@@ -8,27 +8,129 @@ format: typst
 ## **Part 0: libraries**
 
 ```{r}
-
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+install.packages("maps")
 ```
 
 ## **Part 1:** **Defining Research Question**
 
-Chosen Question:
+Chosen Question: Which states consume the most renewable energy?
 
 ## **Part 2: Data Preparation and Cleaning**
 
 ```{r}
+avg_energy_price <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/av-energy-price-2021-2023.csv")
+ev_reg_state <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/ev-registrations-by-state-2023.csv")
+renew_energy_2021 <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/renew-use-2021.csv")
+renew_energy_2022 <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/renew-use-2022.csv")
+renew_energy_2023 <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/renew-use-2023.csv")
+total_energy_2021 <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/total-use-2021.csv")
+total_energy_2022 <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/total-use-2022.csv")
+total_energy_2023 <- read.csv("/Users/gijojoseph/Documents/stat133/project-4/ev-power-chrisjoseph174-1/data/total-use-2023.csv")
 
+#Cleaning Datasets
+##Converting Column Names to lowercase
+clean_energy_price_names <- str_to_lower(names(avg_energy_price))
+names(avg_energy_price) <- clean_energy_price_names
+
+clean_ev_names <- str_to_lower(names(ev_reg_state))
+names(ev_reg_state) <- clean_ev_names
+
+clean_renew_2021_names <- str_to_lower(names(renew_energy_2021))
+names(renew_energy_2021) <- clean_renew_2021_names
+
+clean_renew_2022_names <- str_to_lower(names(renew_energy_2022))
+names(renew_energy_2023) <- clean_renew_2022_names
+
+clean_renew_2023_names <- str_to_lower(names(renew_energy_2023))
+names(renew_energy_2023) <- clean_renew_2023_names
+
+clean_total_renew_2021_names <- str_to_lower(names(total_energy_2021))
+names(total_energy_2021) <- clean_total_renew_2021_names
+
+clean_total_renew_2022_names <- str_to_lower(names(total_energy_2022))
+names(total_energy_2022) <- clean_total_renew_2022_names
+
+clean_total_renew_2023_names <- str_to_lower(names(total_energy_2023))
+names(total_energy_2023) <- clean_total_renew_2023_names
+
+renew_energy_2021$year <- 2021
+renew_energy_2022$year <- 2022
+renew_energy_2023$year <-2023
+
+names(renew_energy_2022) <- names(renew_energy_2021)
+names(renew_energy_2023) <- names(renew_energy_2021)
+
+renew_all <- rbind(renew_energy_2021, renew_energy_2022, renew_energy_2023)
 ```
 
 ## **Part 3: Joining / Pivoting Datasets for Analysis**
 
 ```{r}
+renew_all_long <- renew_all |>
+    pivot_longer(cols = -c(energy_source, year), names_to = "state", values_to = "renewable_use")
 
+renew_all_long <- renew_all_long |>
+    mutate(renewable_use = as.numeric(renewable_use))
+
+state_summary <- renew_all_long |>
+    group_by(state) |>
+    summarize(total_renew_use = sum(renewable_use, na.rm = TRUE), avg_annual_renew_use = mean(renewable_use, na.rm = TRUE))
 ```
 
 ## **Part 4: Mapping Visualization**
 
 ```{r}
+library(maps)
 
+us <- map_data("state")
+
+state_lookup <- data.frame(region = tolower(state.name), state_code = tolower(state.abb)) |>
+    bind_rows(data.frame(region = "district of columbia", state_code = "dc"))
+
+us_map_data_codes <- us |>
+    left_join(state_lookup, by="region")
+
+us_map_joined <- left_join(x = us_map_data_codes, y = state_summary, by = c("state_code" = "state"))
+ggplot(us_map_joined, aes(x = long, y = lat, group = group, fill = total_renew_use)) + geom_polygon(color = "white") + labs(title = "US Map of Renewable Energy Usage")
 ```
+
+# Map of US Renewable Energy Usage
+
+## Overview: I wanted to understand which states consume the most renewable energy.
+
+## Data and Methods
+
+```{r}
+renew_all <- rbind(renew_energy_2021, renew_energy_2022, renew_energy_2023)
+head(renew_all)
+
+state_summary <- renew_all_long |>
+    group_by(state) |>
+    summarize(total_renew_use = sum(renewable_use, na.rm = TRUE), avg_annual_renew_use = mean(renewable_use, na.rm = TRUE))
+head(state_summary)
+```
+
+## Map Visualization
+
+```{r}
+library(maps)
+
+us <- map_data("state")
+
+state_lookup <- data.frame(region = tolower(state.name), state_code = tolower(state.abb)) |>
+    bind_rows(data.frame(region = "district of columbia", state_code = "dc"))
+
+us_map_data_codes <- us |>
+    left_join(state_lookup, by="region")
+
+us_map_joined <- left_join(x = us_map_data_codes, y = state_summary, by = c("state_code" = "state"))
+ggplot(us_map_joined, aes(x = long, y = lat, group = group, fill = total_renew_use)) + geom_polygon(color = "white") + labs(title = "US Map of Renewable Energy Usage")
+```
+
+## Analysis
+
+#### The map that was exported from the visualization step does not seem to show a pattern of which states consume renewable energy. Unfortunately, this map does not help answer the main research question of which states consume the most renewable energy.
